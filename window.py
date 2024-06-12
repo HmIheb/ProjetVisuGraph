@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout,
                              QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem,
                              QHBoxLayout, QPushButton, QFileDialog, QLabel, QDialog, QFormLayout, QLineEdit, QDialogButtonBox)
 from PyQt5.QtCore import Qt, QRectF
-from PyQt5.QtGui import QPen, QBrush, QFont
+from PyQt5.QtGui import QPen, QBrush, QFont, QImage, QPainter
 import networkx as nx
 
 # GraphVisualizer pour visualiser les graphes d'entités et de relations
@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         self.importButton = QPushButton("Import Ace 2005")
         self.importButton.clicked.connect(self.importText)
         self.exportButton = QPushButton("Export Image")
+        self.exportButton.clicked.connect(self.exportImage)
      
         
         self.buttonLayout = QHBoxLayout()
@@ -73,6 +74,25 @@ class MainWindow(QMainWindow):
             with open(fileName, 'r', encoding='utf-8') as file:
                 text = file.read()
                 #appeler le parser ici
+
+    def exportImage(self):
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getSaveFileName(self, "Export Image", "", "PNG Files (*.png);;All Files (*)", options=options)
+        if fileName:
+            self.export_scene_to_image(self.graphVisualizer.scene, fileName)
+
+    def export_scene_to_image(self, scene: QGraphicsScene, file_path: str):
+        # Déterminer la taille de l'image en fonction de la bounding box de la scène
+        rect = scene.itemsBoundingRect()
+        image = QImage(rect.size().toSize(), QImage.Format_ARGB32)
+        image.fill(Qt.white)
+        
+        painter = QPainter(image)
+        scene.render(painter)
+        painter.end()
+        
+        # Sauvegarder l'image
+        image.save(file_path)
                 
     
 """
