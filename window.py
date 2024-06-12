@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout, 
                              QWidget, QGraphicsView, QGraphicsScene, 
@@ -6,8 +7,10 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout,
 from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtGui import QPen, QBrush, QFont
 import networkx as nx
+from exporter import Exporter
+from annotation import Annotation
 
-# GraphVisualizer pour visualiser les graphes d'entités et de relations
+	# GraphVisualizer pour visualiser les graphes d'entités et de relations
 class GraphVisualizer(QGraphicsView):
     def __init__(self):
         super().__init__()
@@ -17,7 +20,6 @@ class GraphVisualizer(QGraphicsView):
     def initUI(self):
         self.scene = QGraphicsScene()
         self.setScene(self.scene)
-      
         
     def wheelEvent(self, event):
         zoom_in_factor = 1.25
@@ -30,7 +32,7 @@ class GraphVisualizer(QGraphicsView):
         
         self.scale(zoom_factor, zoom_factor)
 
-# MainWindow pour intégrer toutes les fonctionnalités
+	# MainWindow pour intégrer toutes les fonctionnalités
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -41,40 +43,48 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
 
         self.graphVisualizer = GraphVisualizer()
-        
+        self.annotation = Annotation()
 
         self.centralWidget = QWidget()
         self.layout = QVBoxLayout()
         
         self.layout.addWidget(self.graphVisualizer)
-        
-        # Ajouter les boutons d'importation et d'exportation
+
+		# Ajouter les boutons d'importation et d'exportation
         self.importButton = QPushButton("Import Ace 2005")
         self.importButton.clicked.connect(self.importText)
-        self.exportButton = QPushButton("Export Image")
-     
+        self.exportImageButton = QPushButton("Export Image")
         
+        self.exportCSVButton = QPushButton("Export CSV")
+        self.exportCSVButton.clicked.connect(self.export_to_csv)
+        
+
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.importButton)
-        self.buttonLayout.addWidget(self.exportButton)
-        
+        self.buttonLayout.addWidget(self.exportImageButton)
+        self.buttonLayout.addWidget(self.exportCSVButton)
         self.layout.addLayout(self.buttonLayout)
-        
+
         self.centralWidget.setLayout(self.layout)
         self.setCentralWidget(self.centralWidget)
 
-   
-
-    
     def importText(self):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getOpenFileName(self, "Import xml File", "", "Xml Files (*.xml);;All Files (*)", options=options)
         if fileName:
             with open(fileName, 'r', encoding='utf-8') as file:
                 text = file.read()
-                #appeler le parser ici
-                
-    
+                # appeler le parser ici
+
+
+    def export_to_csv(self):
+	    options = QFileDialog.Options()
+	    fileName, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
+	    if fileName:
+	        Exporter.export_to_csv(self.annotation.entities, self.annotation.relations, self.annotation.events, fileName)
+	        print("Exportation en CSV réussie.")
+
+
 """
 Main qui ouvre une fenetre 
 """
@@ -83,3 +93,5 @@ if __name__ == '__main__':
     mainWindow = MainWindow()
     mainWindow.show()
     sys.exit(app.exec_())
+
+
