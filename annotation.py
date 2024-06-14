@@ -60,45 +60,37 @@ class Annotation:
         return event
 
 
-    def parse_xml(f):
-    tree = ET.parse(f)
-    root = tree.getroot()
-    
-    annotation = Annotation()
-    
-   
-    for entity_elem in root.findall('entities/entity'):
-        name = entity_elem.find('value').text
-        entity_type = entity_elem.find('type').text
-        entity = annotation.add_entity(name, entity_type)
-    
-    
-    for relation_elem in root.findall('relations/relation'):
-        relation_type = relation_elem.find('type').text
-        directed = relation_elem.get('DIRECTED') == 'true'
-        
-        entity1_id = relation_elem.find('arg1/entity').get('ID')
-        entity2_id = relation_elem.find('arg2/entity').get('ID')
-        
-        entity1 = next((e for e in annotation.entities if e.id == entity1_id), None)
-        entity2 = next((e for e in annotation.entities if e.id == entity2_id), None)
-        
-        annotation.add_relation(entity1, entity2, relation_type, directed)
+def parse_xml(f):
+        tree = ET.parse(f)
+        root = tree.getroot()
+        annotation = Annotation()
+        for entity_elem in root.findall('entities/entity'):
+             name = entity_elem.find('value').text
+             entity_type = entity_elem.find('type').text
+             entity = annotation.add_entity(name, entity_type)
+        for relation_elem in root.findall('relations/relation'):
+          relation_type = relation_elem.find('type').text
+          directed = relation_elem.get('DIRECTED') == 'true'
+          entity1_id = relation_elem.find('arg1/entity').get('ID')
+          entity2_id = relation_elem.find('arg2/entity').get('ID')
+          entity1 = next((e for e in annotation.entities if e.id == entity1_id), None)
+          entity2 = next((e for e in annotation.entities if e.id == entity2_id), None)
+          annotation.add_relation(entity1, entity2, relation_type, directed)
     
   
-    for event_elem in root.findall('events/event'):
-        trigger_elem = event_elem.find('trigger')
-        trigger = annotation.add_entity(trigger_elem.find('value').text, trigger_elem.find('type').text)
-        event_type = event_elem.find('type').text
-        event = annotation.add_event(trigger, event_type)
+        for event_elem in root.findall('events/event'):
+            trigger_elem = event_elem.find('trigger')
+            trigger = annotation.add_entity(trigger_elem.find('value').text, trigger_elem.find('type').text)
+            event_type = event_elem.find('type').text
+            event = annotation.add_event(trigger, event_type)
         
         for argument_elem in event_elem.findall('argument'):
             role = argument_elem.get('ROLE')
             argument_id = argument_elem.get('ENTITY')
             argument = next((e for e in annotation.entities if e.id == argument_id), None)
             event.add_argument(role, argument)
+        return annotation
     
-    return annotation
 
 def parse_json(fich):
     data = json.load(fich)
