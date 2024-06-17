@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<annotation>
+    <entities>
+        <entity ID="e1">
+            <value>Hello Kitty</value>
+            <type>Character</type>
+        </entity>
+        <entity ID="e2">
+            <value>Sanrio</value>
+            <type>Company</type>
+        </entity>
+        <entity ID="e3">
+            <value>London</value>
+            <type>Place</type>
+        </entity>
+        <entity ID="e4">
+            <value>Mimmy</value>
+            <type>Character</type>
+        </entity>
+    </entities>
+    <relations>
+        <relation DIRECTED="true">
+            <type>CreatedBy</type>
+            <arg1>
+                <entity ID="e1"/>
+            </arg1>
+            <arg2>
+                <entity ID="e2"/>
+            </arg2>
+        </relation>
+        <relation DIRECTED="true">
+            <type>BasedIn</type>
+            <arg1>
+                <entity ID="e1"/>
+            </arg1>
+            <arg2>
+                <entity ID="e3"/>
+            </arg2>
+        </relation>
+        <relation DIRECTED="false">
+            <type>SisterOf</type>
+            <arg1>
+                <entity ID="e1"/>
+            </arg1>
+            <arg2>
+                <entity ID="e4"/>
+            </arg2>
+        </relation>
+    </relations>
+    <events>
+        <event>
+            <trigger>
+                <entity ID="e1"/>
+                <value>Birthday Party</value>
+                <type>Event</type>
+            </trigger>
+            <type>Birthday</type>
+            <argument ROLE="CelebratedBy" ENTITY="e1"/>
+            <argument ROLE="OrganizedBy" ENTITY="e2"/>
+            <argument ROLE="Location" ENTITY="e3"/>
+        </event>
+    </events>
+</annotation>
+
