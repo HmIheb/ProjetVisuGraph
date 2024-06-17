@@ -6,6 +6,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout,
 from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtGui import QPen, QBrush, QFont
 import networkx as nx
+from exporter import Exporter
+from annotation import Annotation
 
 # GraphVisualizer pour visualiser les graphes d'entités et de relations
 class GraphVisualizer(QGraphicsView):
@@ -42,6 +44,7 @@ class MainWindow(QMainWindow):
 
         self.graphVisualizer = GraphVisualizer()
         
+        self.annotation = Annotation()
 
         self.centralWidget = QWidget()
         self.layout = QVBoxLayout()
@@ -52,12 +55,15 @@ class MainWindow(QMainWindow):
         self.importButton = QPushButton("Import Ace 2005")
         self.importButton.clicked.connect(self.importText)
         self.exportButton = QPushButton("Export Image")
-     
+        
+        self.exportCSVButton = QPushButton("Export CSV")
+        self.exportCSVButton.clicked.connect(self.export_to_csv)     
         
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.importButton)
         self.buttonLayout.addWidget(self.exportButton)
-        
+        self.buttonLayout.addWidget(self.exportCSVButton)
+
         self.layout.addLayout(self.buttonLayout)
         
         self.centralWidget.setLayout(self.layout)
@@ -73,6 +79,13 @@ class MainWindow(QMainWindow):
             with open(fileName, 'r', encoding='utf-8') as file:
                 text = file.read()
                 #appeler le parser ici
+
+    def export_to_csv(self):
+        options = QFileDialog.Options()
+        fileName, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if fileName:
+            Exporter.export_to_csv(self.annotation.entities, self.annotation.relations, self.annotation.events, fileName)
+            print("Exportation en CSV réussie.")
                 
     
 """
