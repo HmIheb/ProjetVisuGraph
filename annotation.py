@@ -1,11 +1,21 @@
 import xml.etree.ElementTree as ET
 import json
+"""
+Classe entité défini par un nom et par un type d'entité tout deux en chaine de caracteres
+"""
 
 class Entity:
     def __init__(self, entity_id, name, entity_type):
         self.id = entity_id
         self.name = name
         self.type = entity_type
+    
+    def __eq__(self, other):
+        return (self.mention == other.mention and 
+                self.entity_type == other.entity_type)
+
+    def __hash__(self):
+        return hash((self.mention, self.entity_type))
 
 class Relation:
     def __init__(self, e1, e2, relation_type, directed=False):
@@ -13,6 +23,15 @@ class Relation:
         self.entity2 = e2
         self.type = relation_type
         self.directed = directed
+
+    def __eq__(self, other):
+        return (self.entity1 == other.entity1 and 
+                self.entity2 == other.entity2 and 
+                self.type == other.type and 
+                self.directed == other.directed)
+
+    def __hash__(self):
+        return hash((self.entity1, self.entity2, self.type, self.directed))
 
 class Event:
     def __init__(self, trigger, event_type):
@@ -23,8 +42,15 @@ class Event:
     def add_argument(self, role, entity):
         self.arguments.append((role, entity))
 
+    def __eq__(self, other):
+        return self.trigger == other.trigger and self.type == other.type
+
+    def __hash__(self):
+        return hash((self.trigger, self.type))
+
 class Annotation:
     def __init__(self):
+        self.phrase=" test "
         self.entities = []
         self.relations = []
         self.events = []
@@ -44,6 +70,7 @@ class Annotation:
         self.events.append(event)
         return event
 
+            
 def parse_xml(f):
     tree = ET.parse(f)
     root = tree.getroot()
@@ -89,3 +116,37 @@ def parse_json(fich):
             argument_entity = next((e for e in annotation.entities if e.id == argument['entity']), None)
             event_obj.add_argument(argument['role'], argument_entity)
     return annotation
+
+def pointcommun_annotation(annotation1, annotation2):
+    common_annot = Annotation()
+
+    # les entitées commune
+    common_entities = set(annotation1.entities).intersection(set(annotation2.entities))
+    common_annot.entities.extend(common_entities)
+
+    # les relations communes
+    common_relations = set(annotation1.relations).intersection(set(annotation2.relations))
+    common_annot.relations.extend(common_relations)
+
+    # les events communs
+    common_events = set(annotation1.events).intersection(set(annotation2.events))
+    common_annot.events.extend(common_events)
+
+    return common_annot
+
+def difference_annotation(annotation1, annotation2):
+    diff_annot = Annotation()
+
+    # les entitées differentes 
+    diff_entities = set(annotation1.entities).symmetric_difference(set(annotation2.entities))
+    diff_annot.entities.extend(diff_entities)
+
+    # les relations differentes
+    diff_relations = set(annotation1.relations).symmetric_difference(set(annotation2.relations))
+    diff_annot.relations.extend(diff_relations)
+
+    # les events differents
+    diff_events = set(annotation1.events).symmetric_difference(set(annotation2.events))
+    diff_annot.events.extend(diff_events)
+
+    return diff_annot
