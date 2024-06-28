@@ -1,153 +1,114 @@
-# J'ai fusionné mon fichier graph.py qui ne contenait que les classes pour dessiner les nodes, les aretes avec le main.py de iheb, comme ça le fichier graph.py contient les classes pour dessiner ainsi que la fenetre principale
-
-
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, 
-                             QGraphicsView, QGraphicsScene, QHBoxLayout, 
-                             QPushButton, QFileDialog, QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsLineItem)
+                             QHBoxLayout, QPushButton, QFileDialog, QLineEdit, QLabel)
+from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
-import networkx as nx
-from annotation import parse_xml, parse_json, Annotation, Entity, Relation, Event
+import cv2
+import numpy as np
+from annotation import parse_xml, parse_json, Annotation
 
 
-
-class GraphDrawer:
-    def __init__(self, annotation):
-        self.annotation = annotation
-        self.graph = nx.DiGraph()
-        
-    def draw(self):
-        self.creer_noeud()
-        self.creer_arete()
-        
-        
-        
-        
-        
-    #ici si vous jugez que j'ai mal compris, corrigez moi, car selon ma compréhension, une entité et un event sont tous les deux representés par des noeuds 
-    
-    def creer_noeud(self):
-        dessin_entit = EntityDrawer(self.graph)
-        dessin_entit.draw_entities(self.annotation.entities)
-        
-        dessin_event = EventDrawer(self.graph)
-        dessin_event.draw_events(self.annotation.events)
-        
-    def creer_arete(self):
-        relation_drawer = RelationDrawer(self.graph)
-        relation_drawer.draw_relations(self.annotation.relations)
-        
-        dessin_event = EventDrawer(self.graph)
-        dessin_event.draw_event_arguments(self.annotation.events)
-        
-        
-# drawer genre un tirroir hhhhh
-class EntityDrawer:
-    def __init__(self, graph):
-        self.graph = graph
-        
-    def draw_entities(self, entities):
-        for entity in entities:
-            self.graph.add_node(entity.name, label=entity.name, entity_type=entity.type)
-
-class RelationDrawer:
-    def __init__(self, graph):
-        self.graph = graph
-        
-    def draw_relations(self, relations):
-        for relation in relations:
-            self.graph.add_edge(relation.entity1.name, relation.entity2.name, label=relation.type, directed=relation.directed)
-
-class EventDrawer:
-    def __init__(self, graph):
-        self.graph = graph
-        
-    def draw_events(self, events):
-        for event in events:
-            self.graph.add_node(event.trigger.name, label=event.type, entity_type="event")
-            
-    def draw_event_arguments(self, events):
-        for event in events:
-            for role, argument in event.arguments:
-                self.graph.add_edge(event.trigger.name, argument.name, label=role)
-
-class GraphVisualizer(QGraphicsView):
-    def __init__(self):
-        super().__init__()
-        self.initUI()
-
-    def initUI(self):
-        self.scene = QGraphicsScene()
-        self.setScene(self.scene)
-      
-    def wheelEvent(self, event):
-        zoom_in_factor = 1.25
-        zoom_out_factor = 1 / zoom_in_factor
-        
-        if event.angleDelta().y() > 0:
-            zoom_factor = zoom_in_factor
-        else:
-            zoom_factor = zoom_out_factor
-        
-        self.scale(zoom_factor, zoom_factor)
-        
-    def draw_graph(self, graph):
-        self.scene.clear()
-        pos = nx.spring_layout(graph)
-        for node, (x, y) in pos.items():
-            ellipse = QGraphicsEllipseItem(x * 100, y * 100, 20, 20)
-            self.scene.addItem(ellipse)
-            text = QGraphicsTextItem(node)
-            text.setPos(x * 100, y * 100)
-            self.scene.addItem(text)
-        for edge in graph.edges(data=True):
-            source = pos[edge[0]]
-            target = pos[edge[1]]
-            line = QGraphicsLineItem(source[0] * 100, source[1] * 100, target[0] * 100, target[1] * 100)
-            self.scene.addItem(line)
+# la phrase pour tester "Ehud Barak met Yasser Arafat in Paris to discuss the Middle East peace process" avec test_pal.xml
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.annotation = None
 
     def initUI(self):
-        self.setWindowTitle('Outil de Visualisation de Graphes')
+        self.setWindowTitle('Outil de Visualisation de Texte Annoté')
         self.setGeometry(100, 100, 800, 600)
-
-        self.graphVisualizer = GraphVisualizer()
 
         self.centralWidget = QWidget()
         self.layout = QVBoxLayout()
         
-        self.layout.addWidget(self.graphVisualizer)
+        self.textInput = QLineEdit(self)
+        self.textInput.setPlaceholderText("Entrez une phrase ici")
+        self.layout.addWidget(self.textInput)
         
         self.importButton = QPushButton("Import XML/JSON")
-        self.importButton.clicked.connect(self.importText)
-        self.exportButton = QPushButton("Export Image")
+        self.importButton.clicked.connect(self.importFile)
+        self.layout.addWidget(self.importButton)
         
-        self.buttonLayout = QHBoxLayout()
-        self.buttonLayout.addWidget(self.importButton)
-        self.buttonLayout.addWidget(self.exportButton)
+        self.processButton = QPushButton("Traiter le texte")
+        self.processButton.clicked.connect(self.processText)
+        self.layout.addWidget(self.processButton)
         
-        self.layout.addLayout(self.buttonLayout)
+        self.exportButton = QPushButton("Exporter l'image")
+        self.exportButton.clicked.connect(self.exportImage)
+        self.layout.addWidget(self.exportButton)
+        
+        self.imageLabel = QLabel(self)
+        self.layout.addWidget(self.imageLabel)
         
         self.centralWidget.setLayout(self.layout)
         self.setCentralWidget(self.centralWidget)
 
-    def importText(self):
+    def importFile(self):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getOpenFileName(self, "Import File", "", "XML Files (*.xml);;JSON Files (*.json);;All Files (*)", options=options)
         if fileName:
             if fileName.endswith('.xml'):
                 with open(fileName, 'r', encoding='utf-8') as file:
-                    annotation = parse_xml(file)
+                    self.annotation = parse_xml(file)
             elif fileName.endswith('.json'):
                 with open(fileName, 'r', encoding='utf-8') as file:
-                    annotation = parse_json(file)
-            graph_drawer = GraphDrawer(annotation)
-            graph_drawer.draw()
-            self.graphVisualizer.draw_graph(graph_drawer.graph)
+                    self.annotation = parse_json(file)
+
+    def processText(self):
+        if not self.annotation:
+            print("Veuillez d'abord importer un fichier XML ou JSON.")
+            return
+
+        phrase = self.textInput.text()
+        self.annotation.phrase = phrase
+        
+        # ici limage blanche de base
+        img = np.ones((600, 800, 3), np.uint8) * 255
+        
+        # la je dessine le texte ct super nul avec pillow, opencv c mieux
+        cv2.putText(img, phrase, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+        
+        # les entités de merde
+        y_offset = 60
+        for entity in self.annotation.entities:
+            if entity.name.lower() in phrase.lower():
+                start = phrase.lower().index(entity.name.lower())
+                end = start + len(entity.name)
+                cv2.rectangle(img, (start*10, y_offset-20), (end*10, y_offset), (255, 0, 0), 2)
+                cv2.putText(img, entity.type, (start*10, y_offset+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+        
+        # les relations
+        y_offset = 120
+        for relation in self.annotation.relations:
+            text = f"{relation.entity1.name} - {relation.type} -> {relation.entity2.name}"
+            cv2.putText(img, text, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            y_offset += 30
+        
+        # les events 
+        y_offset += 30
+        for event in self.annotation.events:
+            text = f"Event: {event.type} (Trigger: {event.trigger.name})"
+            cv2.putText(img, text, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            y_offset += 30
+            for role, argument in event.arguments:
+                text = f"  - {role}: {argument.name}"
+                cv2.putText(img, text, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                y_offset += 30
+        
+        # convertir l'image en QPixmap et l'afficher, merci a reddit pour cette partie entierement copiée collée hhhh
+        height, width, channel = img.shape
+        bytesPerLine = 3 * width
+        qImg = QImage(img.data, width, height, bytesPerLine, QImage.Format_RGB888)
+        self.imageLabel.setPixmap(QPixmap.fromImage(qImg))
+
+    def exportImage(self):
+        if self.imageLabel.pixmap():
+            options = QFileDialog.Options()
+            fileName, _ = QFileDialog.getSaveFileName(self, "Sauvegarder l'image", "", "PNG Files (*.png);;JPG Files (*.jpg);;All Files (*)", options=options)
+            if fileName:
+                self.imageLabel.pixmap().save(fileName)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
