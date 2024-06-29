@@ -16,6 +16,7 @@ class Entity:
 
     def __hash__(self):
         return hash((self.mention, self.entity_type))
+    
 
 class Relation:
     def __init__(self, e1, e2, relation_type, directed=False):
