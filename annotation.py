@@ -50,7 +50,7 @@ class Event:
 
 class Annotation:
     def __init__(self):
-        self.phrase=" test "
+        self.phrase="Palestinian People."
         self.entities = []
         self.relations = []
         self.events = []
