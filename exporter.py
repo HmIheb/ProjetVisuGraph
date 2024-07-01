@@ -1,5 +1,8 @@
 import pandas as pd
 
+'''
+Contient les méthode d'exportation 
+'''
 class Exporter:
     @staticmethod
     def export_to_csv(entities, relations, events, file_name):

@@ -9,32 +9,10 @@ from PyQt5.QtGui import QPen, QBrush, QFont
 import networkx as nx
 from exporter import Exporter
 from annotation import Annotation,parse_xml
-from AnnotationListWidget import AnnotationListWidget
 import AListWidget
 from creationWidget import createWindow
+from graphVisual import GraphView
 
-# GraphVisualizer pour visualiser les graphes d'entités et de relations
-class GraphVisualizer(QGraphicsView):
-    def __init__(self):
-        super().__init__()
-        
-        self.initUI()
-
-    def initUI(self):
-        self.scene = QGraphicsScene()
-        self.setScene(self.scene)
-      
-        
-    def wheelEvent(self, event):
-        zoom_in_factor = 1.25
-        zoom_out_factor = 1 / zoom_in_factor
-        
-        if event.angleDelta().y() > 0:
-            zoom_factor = zoom_in_factor
-        else:
-            zoom_factor = zoom_out_factor
-        
-        self.scale(zoom_factor, zoom_factor)
 
 # MainWindow pour intégrer toutes les fonctionnalités
 class MainWindow(QMainWindow):
@@ -46,7 +24,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Outil de Visualisation de Graphes')
         self.setGeometry(100, 100, 800, 600)
 
-        self.graphVisualizer = GraphVisualizer()
+        self.graphVisualizer = GraphView()
         
         self.annotation = []
         
@@ -79,7 +57,7 @@ class MainWindow(QMainWindow):
         
 
         # Ajouter le widget de liste d'annotations
-        self.list=AListWidget.AlistWidget(self.annotation)
+        self.list=AListWidget.AlistWidget(self.annotation,self)
         self.layout.addWidget(self.list)
         
         self.centralWidget.setLayout(self.layout)
@@ -92,25 +70,28 @@ class MainWindow(QMainWindow):
             with open(fileName, 'r', encoding='utf-8') as file:
                 a = parse_xml(file)
         self.annotation.append(a)
-        self.list.updatelist(self.annotation)
+        self.graphVisualizer.export_image(a)
+        self.list.updatelist()
 
     def export_to_csv(self):
         options = QFileDialog.Options()
+        i=0
         fileName, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
         if fileName:
-            Exporter.export_to_csv(self.annotation.entities, self.annotation.relations, self.annotation.events, fileName)
-            print("Exportation en CSV réussie.")
+            for a in self.annotation:
+                Exporter.export_to_csv(a.entities, a.relations, a.events, fileName+i.__str__())
+                i=i+1
+                print("Exportation en CSV réussie.")
 
+    #ouvre la fenetre de creation d'annotation 
     def openCreate(self):
         c = createWindow()
         if c.exec_() == QDialog.Accepted:
             obj = c.getObject()
             if obj:
                 self.annotation.append(obj)
-
-    # Mettre à jour la liste des annotations dans AnnotationListWidget
-    def update_annotation_list(self):
-        self.annotationListWidget.update_annotations(self.annotation.entities, self.annotation.relations, self.annotation.events)            
+                self.graphVisualizer.export_image(obj)
+                self.list.updatelist()
 
 """
 Main qui ouvre une fenetre 

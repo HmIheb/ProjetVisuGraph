@@ -11,11 +11,11 @@ class Entity:
         self.type = entity_type
     
     def __eq__(self, other):
-        return (self.mention == other.mention and 
-                self.entity_type == other.entity_type)
+        return (self.name == other.name and 
+                self.type == other.type)
 
     def __hash__(self):
-        return hash((self.mention, self.entity_type))
+        return hash((self.name, self.type))
 
 class Relation:
     def __init__(self, e1, e2, relation_type, directed=False):

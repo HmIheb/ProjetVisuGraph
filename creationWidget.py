@@ -3,8 +3,9 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout,
                              QWidget, QGraphicsView, QGraphicsScene, 
                              QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem,
                              QHBoxLayout, QPushButton, QFileDialog, QLabel, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
-                             QComboBox, QCheckBox, QListWidget)
+                             QComboBox, QCheckBox, QListWidget,QMenu,QAction)
 from annotation import Annotation 
+from PyQt5.QtCore import Qt
 
 """
 Fenetre permettant la création d'annotation
@@ -17,13 +18,26 @@ class createWindow(QDialog):
 
     def initUI(self):
         self.layout = QVBoxLayout()
-        self.nameLabel = QLabel(f'Phrase: {self.annotation.phrase}')
+        self.nameLabel = QLabel('Phrase:')
+        self.phrase = QTextEdit()
         self.layout.addWidget(self.nameLabel)
+        self.layout.addWidget(self.phrase)
 
         # Création des listes d'éléments pour les entités, les relations et les événements
         self.entityListWidget = QListWidget()
         self.relationListWidget = QListWidget()
         self.eventListWidget = QListWidget()
+
+        # Ajouter les menus contextuels
+        self.entityListWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.entityListWidget.customContextMenuRequested.connect(self.show_entity_context_menu)
+
+        self.relationListWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.relationListWidget.customContextMenuRequested.connect(self.show_relation_context_menu)
+
+        self.eventListWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.eventListWidget.customContextMenuRequested.connect(self.show_event_context_menu)
+
 
         # Ajouter les boutons pour créer des entités, des relations et des événements
         self.createEntityButton = QPushButton("Créer Entité")
@@ -241,6 +255,43 @@ class createWindow(QDialog):
             entity = self.annotation.entities[entityComboBox.currentIndex()]
             argumentsListWidget.addItem(f"{role}: {entity.name}")                
     
+    def show_entity_context_menu(self, position):
+        menu = QMenu()
+        delete_action = QAction('Supprimer', self)
+        delete_action.triggered.connect(lambda: self.delete_item(self.entityListWidget))
+        menu.addAction(delete_action)
+        menu.exec_(self.entityListWidget.viewport().mapToGlobal(position))
+
+    def show_relation_context_menu(self, position):
+        menu = QMenu()
+        delete_action = QAction('Supprimer', self)
+        delete_action.triggered.connect(lambda: self.delete_item(self.relationListWidget))
+        menu.addAction(delete_action)
+        menu.exec_(self.relationListWidget.viewport().mapToGlobal(position))
+
+    def show_event_context_menu(self, position):
+        menu = QMenu()
+        delete_action = QAction('Supprimer', self)
+        delete_action.triggered.connect(lambda: self.delete_item(self.eventListWidget))
+        menu.addAction(delete_action)
+        menu.exec_(self.eventListWidget.viewport().mapToGlobal(position))
+
+    def delete_item(self, list_widget):
+        selected_items = list_widget.selectedItems()
+        if not selected_items:
+            return
+        for item in selected_items:
+            row = list_widget.row(item)
+            list_widget.takeItem(row)
+
+            # Remove from annotation data
+            if list_widget == self.entityListWidget:
+                del self.annotation.entities[row]
+            elif list_widget == self.relationListWidget:
+                del self.annotation.relations[row]
+            elif list_widget == self.eventListWidget:
+                del self.annotation.events[row]
 
     def getObject(self):
+        self.annotation.phrase = self.phrase.toPlainText()
         return getattr(self, 'annotation', None)
