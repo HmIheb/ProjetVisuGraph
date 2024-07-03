@@ -14,22 +14,21 @@ ENTITY_COLORS = {
 
 class GraphView(QGraphicsView):
     def __init__(self):
+        self.anno = {}
         super().__init__()
         self.setRenderHint(QPainter.Antialiasing)
         self.setRenderHint(QPainter.SmoothPixmapTransform)
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
+
+        
         
         # Enable dragging
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         
         self.setScene(QGraphicsScene(self))
         
-    def add_image(self, pixmap):
-        item = QGraphicsPixmapItem(pixmap)
-        item.setFlag(QGraphicsPixmapItem.ItemIsMovable)
-        item.setFlag(QGraphicsPixmapItem.ItemIsSelectable)
-        self.scene().addItem(item)
+        
         
     def wheelEvent(self, event):
         # Zoom factor
@@ -42,10 +41,12 @@ class GraphView(QGraphicsView):
         self.scale(zoom_factor, zoom_factor)
 
     def export_image(self,annotation):
+        def draw_text_with_color(draw, position, text, color, font):
+            draw.text(position, text, fill=color, font=font)
         if not annotation:
             return
          #va falloir mettre un champs à la place de ça 
-        text = "Hello Kitty was created by Sanrio and lives in London with her twin sister Mimmy"
+        #text = "Hello Kitty was created by Sanrio and lives in London with her twin sister Mimmy Birthday Party"
         text = annotation.phrase
         #on découpe bien notre phrase 
         words = text.split()
@@ -90,16 +91,43 @@ class GraphView(QGraphicsView):
                 draw.line([(entity1_pos[0],mid_y), (entity2_pos[0],mid_y)], fill='black', width=1)
                 t=t+30
                 draw.text((mid_x, mid_y), relation.type, fill='black', font=font)
+
+        t=t+20
+        for event in annotation.events:
+            trigger_pos = word_positions.get(event.trigger.name)
+            if trigger_pos:
+                color = 'purple' #au lieu de color coder les events je leur balance tous le violet
+                trigger_text = event.trigger.name
+                draw.rectangle([trigger_pos[0], trigger_pos[1], trigger_pos[0] + len(trigger_text) * 10, trigger_pos[1] + 20], outline=color)
+                draw_text_with_color(draw, trigger_pos, trigger_text, color, font)
+                draw_text_with_color(draw, (trigger_pos[0], trigger_pos[1] + 40), event.type[:3].upper(), color, font)
+                for arg in event.arguments:
+                    entity_pos = word_positions.get(arg[1].name)
+                    mid_x = (entity_pos[0] + trigger_pos[0]) / 2
+                    mid_y = (entity_pos[1] + trigger_pos[1]) +t / 2
+                    draw.line([(trigger_pos[0],mid_y), (entity_pos[0],mid_y)], fill='purple', width=1)
+                    draw.line([(entity_pos[0],mid_y),(entity_pos[0],mid_y-10)], fill='purple', width=1)
+                    draw.text((entity_pos[0]+2, mid_y-10), arg[0], fill='purple', font=font)
+                
+                t=t+50
+
+                
        #et hoop en retourne l'image
+        
         image_data = image.tobytes("raw", "RGBA")
         qimage = QImage(image_data, image.width, image.height, QImage.Format_RGBA8888)
         pixmap = QPixmap.fromImage(qimage)
-        self.add_image(pixmap)
+        item = QGraphicsPixmapItem(pixmap)
+        item.setFlag(QGraphicsPixmapItem.ItemIsMovable)
+        
+        item.setFlag(QGraphicsPixmapItem.ItemIsSelectable)
+        self.anno[annotation.__str__()]=item
+        self.scene().addItem(item)
 
-    def delete_selected_image(self):
-        selected_items = self.scene().selectedItems()
-        for item in selected_items:
-            if isinstance(item, QGraphicsPixmapItem):
-                self.scene().removeItem(item)
+    def delete_selected_image(self,s):
+        selected_item = self.anno[s]
+        self.scene().removeItem(selected_item)
+        del self.anno[s]
+
 
 

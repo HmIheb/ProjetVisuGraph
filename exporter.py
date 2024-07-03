@@ -1,4 +1,6 @@
 import pandas as pd
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 '''
 Contient les méthode d'exportation 
@@ -25,5 +27,72 @@ class Exporter:
             events_df.to_csv(csvfile, index=False)
     
         print("Exportation en CSV réussie.")
+
+    def export_to_xml(entities, relations, events, file_name, uri, docid):
+        source_file = ET.Element("source_file", {
+            "URI": uri,
+            "SOURCE": "newswire",
+            "TYPE": "text",
+            "VERSION": "4.0",
+            "AUTHOR": "LDC",
+            "ENCODING": "UTF-8"
+        })
+
+        document = ET.SubElement(source_file, "document", {"DOCID": docid})
+
+        for entity in entities:
+            entity_elem = ET.SubElement(document, "entity", {
+                "ID": entity.name,  # Assuming name is used as ID
+                "TYPE": entity.type
+            })
+            for mention in getattr(entity, 'mentions', []):
+                mention_elem = ET.SubElement(entity_elem, "entity_mention", {"ID": mention.id})
+                extent = ET.SubElement(mention_elem, "extent")
+                charseq_extent = ET.SubElement(extent, "charseq", {
+                    "START": mention.extent_start,
+                    "END": mention.extent_end
+                })
+                charseq_extent.text = mention.extent_text
+                head = ET.SubElement(mention_elem, "head")
+                charseq_head = ET.SubElement(head, "charseq", {
+                    "START": mention.head_start,
+                    "END": mention.head_end
+                })
+                charseq_head.text = mention.head_text
+
+        for relation in relations:
+            relation_elem = ET.SubElement(document, "relation", {
+                "ID": f"{relation.entity1.name}_{relation.entity2.name}",
+                "TYPE": relation.type,
+                "DIRECTED": str(relation.directed).lower()
+            })
+            ET.SubElement(relation_elem, "arg", {"ENTITYID": relation.entity1.name, "ROLE": "arg1"})
+            ET.SubElement(relation_elem, "arg", {"ENTITYID": relation.entity2.name, "ROLE": "arg2"})
+
+        for event in events:
+            event_elem = ET.SubElement(document, "event", {
+                "ID": event.trigger.name,
+                "TYPE": event.type
+            })
+            for role, arg in event.arguments:
+                ET.SubElement(event_elem, "arg", {"ROLE": role, "ENTITYID": arg.name})
+
+        tree = ET.ElementTree(source_file)
+
+        # Convertir l'élément tree en une chaîne XML
+        xml_str = ET.tostring(source_file, encoding='utf-8', method='xml')
+
+        # Utiliser minidom pour formater avec une indentation
+        parsed_xml = minidom.parseString(xml_str)
+        pretty_xml_as_str = parsed_xml.toprettyxml(indent="    ")
+
+        print(f"Writing to file: {file_name}")
+        try:
+            with open(file_name, 'w', encoding='utf-8') as files:
+                files.write(pretty_xml_as_str)
+            print("Exportation en XML réussie.")
+        except Exception as e:
+            print(f"Erreur lors de l'exportation en XML: {e}")
+
 
 

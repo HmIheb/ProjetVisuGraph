@@ -302,6 +302,10 @@ class AlistWidget(QWidget):
         self.layout = QVBoxLayout()
 
         self.listWidget = QListWidget()
+
+        self.listWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.listWidget.customContextMenuRequested.connect(self.openContextMenu)
+
         for obj in self.objects:
             self.listWidget.addItem(str(obj))
 
@@ -318,6 +322,26 @@ class AlistWidget(QWidget):
         self.listWidget.clear()
         for obj in self.objects:
             self.listWidget.addItem(str(obj))
+    
+    def openContextMenu(self, position):
+        contextMenu = QMenu(self)
+        deleteAction = QAction('Supprimer', self)
+        deleteAction.triggered.connect(self.deleteSelectedItem)
+        contextMenu.addAction(deleteAction)
+        contextMenu.exec_(self.listWidget.viewport().mapToGlobal(position))
+
+    def deleteSelectedItem(self):
+        selected_items = self.listWidget.selectedItems()
+        if not selected_items:
+            return
+
+        for item in selected_items:
+            obj_name = item.text()
+            selected_obj = next((obj for obj in self.objects if str(obj) == obj_name), None)
+            if selected_obj:
+                self.objects.remove(selected_obj)
+                self.listWidget.takeItem(self.listWidget.row(item))
+        self.window.graphVisualizer.delete_selected_image(selected_obj.__str__())
 
 
     def openDetailWindow(self, item):
@@ -326,8 +350,10 @@ class AlistWidget(QWidget):
         if selected_obj:
             self.detailWindow = DetailWindow(selected_obj)
             if self.detailWindow.exec_() == QDialog.Accepted:
-                obj = DetailWindow.getObject()
+                obj = self.detailWindow.getObject()
                 if obj:
                     selected_obj.entities = obj.entities
                     selected_obj.relations = obj.relations
                     selected_obj.events = obj.events
+                    self.window.graphVisualizer.delete_selected_image(selected_obj.__str__())
+                    self.window.graphVisualizer.export_image(selected_obj)
