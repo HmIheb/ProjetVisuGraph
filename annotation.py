@@ -11,11 +11,11 @@ class Entity:
         self.type = entity_type
     
     def __eq__(self, other):
-        return (self.mention == other.mention and 
-                self.entity_type == other.entity_type)
+        return (self.name == other.name and 
+                self.type == other.type)
 
     def __hash__(self):
-        return hash((self.mention, self.entity_type))
+        return hash((self.name, self.type))
 
 class Relation:
     def __init__(self, e1, e2, relation_type, directed=False):
@@ -50,7 +50,7 @@ class Event:
 
 class Annotation:
     def __init__(self):
-        self.phrase="Palestinian People."
+        self.phrase="Six Palestinians Live in the West Bank "
         self.entities = []
         self.relations = []
         self.events = []
@@ -74,30 +74,82 @@ class Annotation:
 def parse_xml(f):
     tree = ET.parse(f)
     root = tree.getroot()
-    annotation = Annotation()
-    for entity_elem in root.findall('entities/entity'):
-        entity_id = entity_elem.get('ID')
-        name = entity_elem.find('value').text
-        entity_type = entity_elem.find('type').text
-        annotation.add_entity(entity_id, name, entity_type)
-    for relation_elem in root.findall('relations/relation'):
-        relation_type = relation_elem.find('type').text
-        directed = relation_elem.get('DIRECTED') == 'true'
-        entity1_id = relation_elem.find('arg1/entity').get('ID')
-        entity2_id = relation_elem.find('arg2/entity').get('ID')
+    annotation = Annotation() #ok on a notre annotation bismichaytan
+
+    #la ca cherche les entites
+    for entite_compose in root.findall('.//composite_entity'):
+        for entity_elem in entite_compose.findall('entity'):
+            entity_id = entity_elem.get('ID')
+            entity_type = entity_elem.get('TYPE')
+            for mention_elem in entity_elem.findall('entity_mention'):
+                
+                name = mention_elem.find('./extent/charseq').text
+                annotation.add_entity(entity_id, name, entity_type)
+    
+    #dive pour les relations (susceptible de trouver la relation de attal et bardella)
+    for relation_elem in root.findall('.//relation'):
+        relation_mention_elem = relation_elem.find('.//relation_mention')
+        
+        if relation_mention_elem is None:
+            print(f"YA PAS DE relation_mention: {ET.tostring(relation_elem, encoding='unicode')}")
+            continue
+        
+        
+        extent_elem = relation_mention_elem.find('extent/charseq')
+        if extent_elem is None:
+            print(f"extent/charseq maakch: {ET.tostring(relation_mention_elem, encoding='unicode')}")
+            continue
+        
+        extent_text = extent_elem.text
+        
+        
+        relation_mention_arguments = []
+        for arg_elem in relation_mention_elem.findall('relation_mention_argument'):
+            entity_id = arg_elem.get('ENTITYID')
+            if entity_id is None:
+                print(f"ENTITYID makach: {ET.tostring(arg_elem, encoding='unicode')}")
+                continue
+            relation_mention_arguments.append(entity_id)
+        
+        
+        entity1_id = relation_mention_arguments[0] if len(relation_mention_arguments) > 0 else None
+        entity2_id = relation_mention_arguments[1] if len(relation_mention_arguments) > 1 else None
+        print("hawlik "+ entity1_id)
+        
+        
         entity1 = next((e for e in annotation.entities if e.id == entity1_id), None)
         entity2 = next((e for e in annotation.entities if e.id == entity2_id), None)
-        annotation.add_relation(entity1, entity2, relation_type, directed)
-    for event_elem in root.findall('events/event'):
+        
+        
+        if entity1 and entity2:
+            annotation.add_relation(entity1, entity2, extent_text, directed=True) 
+    
+    
+    for event_elem in root.findall('.//event'):
         trigger_elem = event_elem.find('trigger')
-        trigger = annotation.add_entity(trigger_elem.get('ID'), trigger_elem.find('value').text, trigger_elem.find('type').text)
-        event_type = event_elem.find('type').text
+        if trigger_elem is None:
+            print(f"le trigger ya pas wesh: {ET.tostring(event_elem, encoding='unicode')}")
+            continue
+        trigger_id = trigger_elem.get('ID')
+        trigger_value = trigger_elem.find('value')
+        trigger_type = trigger_elem.find('type')
+        if trigger_value is None or trigger_type is None:
+            print(f"trigger elem missing 'value' or 'type': {ET.tostring(trigger_elem, encoding='unicode')}")
+            continue
+        trigger = annotation.add_entity(trigger_id, trigger_value.text, trigger_type.text)
+        event_type_elem = event_elem.find('type')
+        if event_type_elem is None:
+            print(f"ya pas cet event 'type': {ET.tostring(event_elem, encoding='unicode')}")
+            continue
+        event_type = event_type_elem.text
         event = annotation.add_event(trigger, event_type)
         for argument_elem in event_elem.findall('argument'):
             role = argument_elem.get('ROLE')
             argument_id = argument_elem.get('ENTITY')
             argument = next((e for e in annotation.entities if e.id == argument_id), None)
-            event.add_argument(role, argument)
+            if argument:
+                annotation.add_event_argument(event, role, argument)
+    
     return annotation
 
 def parse_json(fich):
