@@ -1,34 +1,19 @@
 import sys
+import re
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout, 
                              QWidget, QGraphicsView, QGraphicsScene, 
                              QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem,
-                             QHBoxLayout, QPushButton, QFileDialog, QLabel, QDialog, QFormLayout, QLineEdit, QDialogButtonBox)
+                             QHBoxLayout, QPushButton, QFileDialog, QLabel, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, 
+                             QComboBox, QCheckBox, QListWidget)
 from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtGui import QPen, QBrush, QFont
 import networkx as nx
+from exporter import Exporter
+from annotation import Annotation, parse_xml
+import AListWidget
+from creationWidget import createWindow
+from graphVisual import GraphView
 
-# GraphVisualizer pour visualiser les graphes d'entités et de relations
-class GraphVisualizer(QGraphicsView):
-    def __init__(self):
-        super().__init__()
-        
-        self.initUI()
-
-    def initUI(self):
-        self.scene = QGraphicsScene()
-        self.setScene(self.scene)
-      
-        
-    def wheelEvent(self, event):
-        zoom_in_factor = 1.25
-        zoom_out_factor = 1 / zoom_in_factor
-        
-        if event.angleDelta().y() > 0:
-            zoom_factor = zoom_in_factor
-        else:
-            zoom_factor = zoom_out_factor
-        
-        self.scale(zoom_factor, zoom_factor)
 
 # MainWindow pour intégrer toutes les fonctionnalités
 class MainWindow(QMainWindow):
@@ -40,7 +25,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Outil de Visualisation de Graphes')
         self.setGeometry(100, 100, 800, 600)
 
-        self.graphVisualizer = GraphVisualizer()
+        self.graphVisualizer = GraphView()
+        
+        self.annotation = []
         
 
         self.centralWidget = QWidget()
@@ -52,29 +39,86 @@ class MainWindow(QMainWindow):
         self.importButton = QPushButton("Import Ace 2005")
         self.importButton.clicked.connect(self.importText)
         self.exportButton = QPushButton("Export Image")
-     
+        
+        self.exportCSVButton = QPushButton("Export CSV")
+        self.exportCSVButton.clicked.connect(self.export_to_csv)
+
+        self.addButton = QPushButton("Créer annotation")
+        self.addButton.clicked.connect(self.openCreate)
         
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.addWidget(self.importButton)
         self.buttonLayout.addWidget(self.exportButton)
+        self.buttonLayout.addWidget(self.exportCSVButton)
+        self.buttonLayout.addWidget(self.addButton)
         
+
         self.layout.addLayout(self.buttonLayout)
+
+        
+
+        # Ajouter le widget de liste d'annotations
+        self.list=AListWidget.AlistWidget(self.annotation,self)
+        self.layout.addWidget(self.list)
         
         self.centralWidget.setLayout(self.layout)
         self.setCentralWidget(self.centralWidget)
 
-   
-
-    
     def importText(self):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getOpenFileName(self, "Import xml File", "", "Xml Files (*.xml);;All Files (*)", options=options)
+
         if fileName:
             with open(fileName, 'r', encoding='utf-8') as file:
-                text = file.read()
-                #appeler le parser ici
-                
-    
+                a = parse_xml(file)
+            print("hawlik " + fileName)
+        
+        if fileName.endswith('.alf.xml'):
+            fiich_sgm = fileName.replace('.alf.xml', '.sgm')
+        else:
+            print(f"L'extension n'est pas bonne: {fileName}")
+            return
+
+        try:
+            with open(fiich_sgm, 'r', encoding='utf-8') as sgm_file:
+                contenu = sgm_file.read()
+        except FileNotFoundError:
+            print(f"Le fichier sgm correspondant n'est pas ici: {fiich_sgm}")
+            return
+
+        # dans cette nouvelle version on ignore les autres balises
+        match = re.search(r'<TEXT>(.*?)</TEXT>', contenu, re.IGNORECASE | re.DOTALL)
+        if match:
+            text_content = match.group(1).strip()
+            a.phrase = text_content
+
+        self.annotation.append(a)
+        self.graphVisualizer.export_image(a)
+        self.list.updatelist()
+        
+        
+  
+
+    def export_to_csv(self):
+        options = QFileDialog.Options()
+        i=0
+        fileName, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
+        if fileName:
+            for a in self.annotation:
+                Exporter.export_to_csv(a.entities, a.relations, a.events, fileName+i.__str__())
+                i=i+1
+                print("Exportation en CSV réussie.")
+
+    #ouvre la fenetre de creation d'annotation 
+    def openCreate(self):
+        c = createWindow()
+        if c.exec_() == QDialog.Accepted:
+            obj = c.getObject()
+            if obj:
+                self.annotation.append(obj)
+                self.graphVisualizer.export_image(obj)
+                self.list.updatelist()
+
 """
 Main qui ouvre une fenetre 
 """
