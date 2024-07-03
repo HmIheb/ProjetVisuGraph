@@ -45,13 +45,12 @@ class GraphView(QGraphicsView):
             draw.text(position, text, fill=color, font=font)
         if not annotation:
             return
-         #va falloir mettre un champs à la place de ça 
-        #text = "Hello Kitty was created by Sanrio and lives in London with her twin sister Mimmy Birthday Party"
+     
         text = annotation.phrase
         #on découpe bien notre phrase 
         words = text.split()
         #notre canvas de base tout blanc
-        image = Image.new('RGBA', (1200, 400), (255, 255, 255, 0))
+        image = Image.new('RGBA', (100*len(words), 400), (255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
         font = ImageFont.load_default()
 
@@ -59,32 +58,33 @@ class GraphView(QGraphicsView):
         word_positions = {}
 
         t=0
+        i = 0
+        while i < len(words):
+            word = words[i]
+            found_entity = False
 
-        for i, word in enumerate(words):
-            entity = None
-            for e in annotation.entities:  
-                # on voit ici si notre entité a un attribut "nom" et ça gère aussi les noms composés
-                if hasattr(e, 'name') and e.name.lower() in ' '.join(words[i:i + len(e.name.split())]).lower():
-                    entity = e
+            for e in annotation.entities:
+                entity_words = e.name.split()
+                if ' '.join(words[i:i + len(entity_words)]).lower() == e.name.lower():
+                    color = ENTITY_COLORS.get(e.type, 'black')
+                    entity_text = ' '.join(words[i:i + len(entity_words)])
+                    draw.rectangle([x, y, x + len(entity_text) * 10, y + 20], outline=color)
+                    draw_text_with_color(draw, (x, y), entity_text, color, font)
+                    draw_text_with_color(draw, (x, y + 20), e.type[:3].upper(), color, font)
+                    word_positions[e.id] = (x, y)
+                    x += len(entity_text) * 10 + 10
+                    i += len(entity_words)
+                    found_entity = True
                     break
-            
-            if entity:
-                #on se sert de notre joli color coding pour encadrer les mots
-                color = ENTITY_COLORS.get(entity.type, 'black')
-                word_length = len(' '.join(words[i:i + len(entity.name.split())]))
-                draw.rectangle([x, y, x + word_length * 10, y + 20], outline=color)
-                draw.text((x, y), ' '.join(words[i:i + len(entity.name.split())]), fill=color, font=font)
-                draw.text((x, y + 20), entity.type[:3].upper(), fill=color, font=font)
-                word_positions[entity.name] = (x, y)
-                x += word_length * 10 + 10
-                i += len(entity.name.split()) - 1
-            else:
-                draw.text((x, y), word, fill='black', font=font)
+
+            if not found_entity:
+                draw_text_with_color(draw, (x, y), word, 'black', font)
                 x += len(word) * 10 + 10
-        #ici on cherche si 2 entités sont liés par une relation
+                i += 1
+            #ici on cherche si 2 entités sont liés par une relation
         for relation in annotation.relations:
-            entity1_pos = word_positions.get(relation.entity1.name)
-            entity2_pos = word_positions.get(relation.entity2.name)
+            entity1_pos = word_positions.get(relation.entity1.id)
+            entity2_pos = word_positions.get(relation.entity2.id)
             if entity1_pos and entity2_pos:
                 mid_x = (entity1_pos[0] + entity2_pos[0]) / 2
                 mid_y = (entity1_pos[1] + entity2_pos[1]) +t / 2
@@ -108,7 +108,7 @@ class GraphView(QGraphicsView):
                     draw.line([(trigger_pos[0],mid_y), (entity_pos[0],mid_y)], fill='purple', width=1)
                     draw.line([(entity_pos[0],mid_y),(entity_pos[0],mid_y-10)], fill='purple', width=1)
                     draw.text((entity_pos[0]+2, mid_y-10), arg[0], fill='purple', font=font)
-                
+                    
                 t=t+50
 
                 

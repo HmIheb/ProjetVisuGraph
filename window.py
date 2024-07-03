@@ -76,8 +76,8 @@ class MainWindow(QMainWindow):
                 a = parse_xml(file)
             print("hawlik " + fileName)
         
-        if fileName.endswith('.apf.xml'):
-            fiich_sgm = fileName.replace('.apf.xml', '.sgm')
+        if fileName.endswith('.alf.xml'):
+            fiich_sgm = fileName.replace('.alf.xml', '.sgm')
         else:
             print(f"L'extension n'est pas bonne: {fileName}")
             return
@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getSaveFileName(self, "Export Image", "", "PNG Files (*.png);;All Files (*)", options=options)
         if fileName:
-            self.export_scene_to_image(self.graphVisualizer.scene, fileName)    
+            self.export_scene_to_image(self.graphVisualizer.scene(), fileName)    
     
     def export_scene_to_image(self, scene: QGraphicsScene, file_path: str):
         rect = scene.itemsBoundingRect()

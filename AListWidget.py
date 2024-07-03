@@ -15,8 +15,9 @@ class DetailWindow(QDialog):
     
 
     def initUI(self):
+        
         self.layout = QVBoxLayout()
-        self.nameLabel = QLabel(f'Phrase: {self.anno.phrase}')
+        self.nameLabel = QLabel(f'Phrase:{self.anno.phrase}')
         self.layout.addWidget(self.nameLabel)
 
 
@@ -63,10 +64,9 @@ class DetailWindow(QDialog):
         self.button = QPushButton('OK', self)
         self.button.clicked.connect(self.accept)
         self.layout.addWidget(self.button)
-        
         self.setLayout(self.layout)
         self.setWindowTitle('Détails de l\'objet')
-        self.setGeometry(100, 100, 300, 200)
+        self.setGeometry(100, 100, 1000, 500)
     
     def getObject(self):
         return getattr(self, 'anno', None)
